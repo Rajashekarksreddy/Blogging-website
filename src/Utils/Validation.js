@@ -9,7 +9,7 @@ const isValidTitle = function(title){
 }
 
 const validemail = function(email){
-   const emailregex =  /^([a-z0-9_\.-]+)@([\da-z\.-]+)\.([a-z\.]{2,6})$/
+   const emailregex = /^\w+([\.-]?\w+)@\w+([\.-]?\w+)(\.\w{2,3})+$/
    emailregex.test(email)
 }
 
