@@ -1,3 +1,4 @@
+const { default: mongoose } = require("mongoose");
 
 const isValid = function (value) {
     if (typeof value === "undefined" || value === null) return false;
@@ -19,4 +20,9 @@ const isValidRequestBody = function(requestBody){
 }
 
 
-module.exports = {isValid,isValidTitle,isValidemail,isValidRequestBody}
+const isValidObjectId = function(ObjectId){
+   return mongoose.Types.ObjectId.isValid(ObjectId)
+}
+
+
+module.exports = {isValid,isValidTitle,isValidemail,isValidRequestBody,isValidObjectId}
