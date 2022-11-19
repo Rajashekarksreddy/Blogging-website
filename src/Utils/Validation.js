@@ -19,10 +19,15 @@ const isValidRequestBody = function(requestBody){
    return Object.keys(requestBody).length > 0;
 }
 
+const isValidString = function(value){
+   if(typeof value === "string" && value.trim().length === 0) return false
+   return true
+}
+
 
 const isValidObjectId = function(ObjectId){
    return mongoose.Types.ObjectId.isValid(ObjectId)
 }
 
 
-module.exports = {isValid,isValidTitle,isValidemail,isValidRequestBody,isValidObjectId}
+module.exports = {isValid,isValidTitle,isValidemail,isValidRequestBody,isValidObjectId,isValidString}

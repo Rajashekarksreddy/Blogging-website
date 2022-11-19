@@ -73,4 +73,70 @@ const createBlog = async function(req,res){
 
 }
 
+
+let getBlogs = async function(req,res){
+
+ let filterquery = {isDeleted:false, deletedAt:null, isPublished:true}
+ let queryparams = req.query
+
+ let {authorId, tags, category, subcategory} = queryparams
+
+ if(!validator.isValidString(authorId)){
+   return res.status(400).send({status:false, message:"authorId is not valid"})
+ }
+
+ if(!validator.isValidString(tags)){
+    return res.status(400).send({status:false, message:"tags cannot be empty while fetching"})
+ }
+
+ if(!validator.isValidString(category)){
+    return res.status(400).send({status:false, message:"category cannot be empty while category"})
+ }
+
+ if(!validator.isValidString(subcategory)){
+    return res.status(400).send({status:false, message:"subcategory cannot be empty while fetching"})
+ }
+
+
+ if(validator.isValid(queryparams)){
+    let {authorId, tags, category, subcategory} = queryparams
+
+
+    if(validator.isValid(authorId) && validator.isValidObjectId(authorId)){
+        filterquery['authorId'] = authorId
+    }
+
+    if(validator.isValid(category)){
+     filterquery['category']=category
+    }
+
+    if(validator.isValid(tags)){
+        let tagarr = tags
+        .trim()
+        .split(',')
+        .map((x) => x.trim())
+        filterquery['tags'] = tagarr
+    }
+    
+    if(validator.isValid(subcategory)){
+        let subcatarr = subcategory
+        .trim()
+        .split(',')
+        .map((x) => x.trim())
+        filterquery['subcategory'] = subcatarr
+    }
+
+    let blog = await BlogModel.find(filterquery)
+  
+    if(Array.isArray(blog) && blog.length === 0){
+        return res.status(400).status({status:false, message:"no blogs found"})
+    }
+    return res.status(201).send({status:true, message:"bloglist", data:blog})
+ }
+}
+
+
+
+
+module.exports.getBlogs = getBlogs
 module.exports.createBlog = createBlog
