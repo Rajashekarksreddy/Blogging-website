@@ -129,14 +129,69 @@ let getBlogs = async function(req,res){
     let blog = await BlogModel.find(filterquery)
   
     if(Array.isArray(blog) && blog.length === 0){
-        return res.status(400).status({status:false, message:"no blogs found"})
+        return res.status(404).status({status:false, message:"no blogs found"})
     }
     return res.status(201).send({status:true, message:"bloglist", data:blog})
  }
 }
 
 
+const updateBlogById =  async function(req,res){
+    let blogId = req.params.blogId;
+    let data = req.body;
+
+     if(!validator.isValidObjectId(blogId)){
+        return res.status(400).send({status:false, message:"BlogId is invalid"})
+     }
+     let {title,body,tags,subcategory} = data
+
+     if(!validator.isValidString(title)){
+        return res.status(400).send({status:false, message:"title is required for updating"})
+     }
+
+     if(!validator.isValidString(body)){
+        return res.status(400).send({status:false, message:"body is required for updating"})
+     }
+
+     if(tags){
+        if(tags.length === 0){
+            return res.status(400).send({status:false, message:"tag is required for updation"})
+        }
+     }
+
+     if(subcategory){
+        if(subcategory.length === 0){
+            return res.status(400).send({message:"subcategory is for required for upation"})
+        }
+     }
+     let Blog = await BlogModel.findOne({_id:blogId})
+     if(!Blog){
+        return res.status(404).send({status:false, message:"no such blog found"})
+     }
 
 
+    if(req.body.title || req.body.body || req.body.tags ||req.body.subcategory ){
+
+        const title = req.body.title
+        const body = req.body.body
+        const tags = req.body.tags
+        const subcategory = req.body.subcategory
+
+    }
+
+    let updateblog = await BlogModel.findOneAndUpdate({_id:req.params.blogId}, 
+    {title:title, body:body, $addToSet:{tags:tags, subcategory:subcategory}},{new:true})
+   
+    if(updateblog.isPublished === true){
+        updateblog.publishedAt = new Date()
+    }
+
+    if(updateblog.isPublished === false){
+        updateblog.publishedAt = null
+    }
+    return res.status(201).send({status:true, message:"update list", data:updateblog})
+}    
+
+module.exports.updateBlogById = updateBlogById
 module.exports.getBlogs = getBlogs
 module.exports.createBlog = createBlog
