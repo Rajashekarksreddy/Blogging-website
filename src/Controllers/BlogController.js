@@ -5,7 +5,7 @@ const validator = require('../Utils/Validation')
 
 const createBlog = async function(req,res){
     let requestBody = req.body
-    let auth = requestBody.authorId
+    let auth = req.authorId
 
 
     if(!validator.isValid(requestBody)){
@@ -137,61 +137,103 @@ let getBlogs = async function(req,res){
 
 
 const updateBlogById =  async function(req,res){
+  try {
+    let authorIdFromToken = req.authorId;
     let blogId = req.params.blogId;
-    let data = req.body;
+    let requestBody = req.body;
+    const { title, body, tags, subcategory } = requestBody;
 
-     if(!validator.isValidObjectId(blogId)){
-        return res.status(400).send({status:false, message:"BlogId is invalid"})
-     }
-     let {title,body,tags,subcategory} = data
-
-     if(!validator.isValidString(title)){
-        return res.status(400).send({status:false, message:"title is required for updating"})
-     }
-
-     if(!validator.isValidString(body)){
-        return res.status(400).send({status:false, message:"body is required for updating"})
-     }
-
-     if(tags){
-        if(tags.length === 0){
-            return res.status(400).send({status:false, message:"tag is required for updation"})
-        }
-     }
-
-     if(subcategory){
-        if(subcategory.length === 0){
-            return res.status(400).send({message:"subcategory is for required for upation"})
-        }
-     }
-     let Blog = await BlogModel.findOne({_id:blogId})
-     if(!Blog){
-        return res.status(404).send({status:false, message:"no such blog found"})
-     }
-
-
-    if(req.body.title || req.body.body || req.body.tags ||req.body.subcategory ){
-
-        const title = req.body.title
-        const body = req.body.body
-        const tags = req.body.tags
-        const subcategory = req.body.subcategory
-
+    if (!validator.isValidObjectId(blogId)) {
+      return res
+        .status(400)
+        .send({ status: false, message: `BlogId is invalid.` });
     }
 
-    let updateblog = await BlogModel.findOneAndUpdate({_id:req.params.blogId}, 
-    {title:title, body:body, $addToSet:{tags:tags, subcategory:subcategory}},{new:true})
-   
-    if(updateblog.isPublished === true){
-        updateblog.publishedAt = new Date()
+    if (!validator.isValidString(title)) {
+      return res
+        .status(400)
+        .send({ status: false, message: "Title is required for updatation." });
     }
 
-    if(updateblog.isPublished === false){
-        updateblog.publishedAt = null
+    if (!validator.isValidString(body)) {
+      return res
+        .status(400)
+        .send({ status: false, message: "Body is required for updatation." });
     }
-    return res.status(201).send({status:true, message:"update list", data:updateblog})
-}    
 
+    if (tags) {
+      if (tags.length === 0) {
+        return res
+          .status(400)
+          .send({ status: false, message: "tags is required for updatation." });
+      }
+    }
+
+    if (subcategory) {
+      if (subcategory.length === 0) {
+        return res.status(400).send({
+          status: false,
+          message: "subcategory is required for updatation.",
+        });
+      }
+    }
+
+    let Blog = await BlogModel.findOne({ _id: blogId });
+    if (!Blog) {
+      return res.status(400).send({ status: false, msg: "No such blog found" });
+    }
+    if (Blog.authorId.toString() !== authorIdFromToken) {
+      res.status(401).send({
+        status: false,
+        message: `Unauthorized access! author's info doesn't match`,
+      });
+      return;
+    }
+    if (
+      req.body.title ||
+      req.body.body ||
+      req.body.tags ||
+      req.body.subcategory
+    ) {
+      const title = req.body.title;
+      const body = req.body.body;
+      const tags = req.body.tags;
+      const subcategory = req.body.subcategory;
+      const isPublished = req.body.isPublished;
+
+      const updatedBlog = await BlogModel.findOneAndUpdate(
+        { _id: req.params.blogId },
+        {
+          title: title,
+          body: body,
+          $addToSet: { tags: tags, subcategory: subcategory },
+          isPublished: isPublished,
+        },
+        { new: true }
+      );
+      if (updatedBlog.isPublished == true) {
+        updatedBlog.publishedAt = new Date();
+      }
+      if (updatedBlog.isPublished == false) {
+        updatedBlog.publishedAt = null;
+      }
+      return res.status(200).send({
+        status: true,
+        message: "Successfully updated blog details",
+        data: updatedBlog,
+      });
+    } else {
+      return res
+        .status(400)
+        .send({ status: false, msg: "Please provide blog details to update" });
+    }
+  } catch (err) {
+    res.status(500).send({
+      status: false,
+      Error: err.message,
+    });
+  }
+};
 
 const deleteBlogId = async function(req,res){
   try{
@@ -217,7 +259,98 @@ const deleteBlogId = async function(req,res){
 }
 
 
+const deleteBlogByquery = async function(req,res){
+    try {
+        const filterQuery = { isDeleted: false, deletedAt: null };
+        const queryParams = req.query;
+        const authorIdFromToken = req.authorId;
+    
+        if (!validator.isValidObjectId(authorIdFromToken)) {
+          res.status(400).send({
+            status: false,
+            message: `${authorIdFromToken} is not a valid token id`,
+          });
+          return;
+        }
+    
+        if (!validator.isValidRequestBody(queryParams)) {
+          res.status(400).send({
+            status: false,
+            message: `No query params received. Aborting delete operation`,
+          });
+          return;
+        }
+    
+        const { authorId, category, tags, subcategory, isPublished } = queryParams;
+    
+        if (validator.isValid(authorId) && validator.isValidObjectId(authorId)) {
+          filterQuery["authorId"] = authorId;
+        }
+    
+        if (validator.isValid(category)) {
+          filterQuery["category"] = category.trim();
+        }
+    
+        if (validator.isValid(isPublished)) {
+          filterQuery["isPublished"] = isPublished;
+        }
+    
+        if (validator.isValid(tags)) {
+          const tagsArr = tags
+            .trim()
+            .split(",")
+            .map((tag) => tag.trim());
+          filterQuery["tags"] = { $all: tagsArr };
+        }
+    
+        if (validator.isValid(subcategory)) {
+          const subcatArr = subcategory
+            .trim()
+            .split(",")
+            .map((subcat) => subcat.trim());
+          filterQuery["subcategory"] = { $all: subcatArr };
+        }
+    
+        const findBlogs = await BlogModel.find(filterQuery);
+    
+        if (Array.isArray(findBlogs) && findBlogs.length === 0) {
+          res
+            .status(404)
+            .send({ status: false, message: "No matching blogs found" });
+          return;
+        }
+    
+        let blogToBeDeleted = [];
+        findBlogs.map((blog) => {
+          if (
+            blog.authorId.toString() === authorIdFromToken &&
+            blog.isDeleted === false
+          ) {
+            blogToBeDeleted.push(blog._id);
+          }
+        });
+    
+        if (blogToBeDeleted.length === 0) {
+          res
+            .status(404)
+            .send({ status: false, message: "No blogs found for deletion." });
+          return;
+        }
+    
+        await BlogModel.updateMany(
+          { _id: { $in: blogToBeDeleted } },
+          { $set: { isDeleted: true, deletedAt: new Date() } }
+        );
+    
+        return res
+          .status(200)
+          .send({ status: true, message: "Blog deleted successfully" });
+      } catch (err) {
+        return res.status(500).send({ status: false, Error: err.message });
+      }
+    };
 
+module.exports.deleteBlogByquery = deleteBlogByquery
 module.exports.deleteBlogId = deleteBlogId
 module.exports.updateBlogById = updateBlogById
 module.exports.getBlogs = getBlogs
